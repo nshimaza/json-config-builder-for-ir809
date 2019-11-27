@@ -107,15 +107,6 @@ prefixLenToMask (PrefixLen len) =
     let
         mask =
             0xFFFFFFFF - (2 ^ (32 - len) - 1)
-
-        maskToStr =
-            (String.fromInt <| Bitwise.and 255 <| Bitwise.shiftRightBy 24 mask)
-                ++ "."
-                ++ (String.fromInt <| Bitwise.and 255 <| Bitwise.shiftRightBy 16 mask)
-                ++ "."
-                ++ (String.fromInt <| Bitwise.and 255 <| Bitwise.shiftRightBy 8 mask)
-                ++ "."
-                ++ (String.fromInt <| Bitwise.and 255 mask)
     in
     (String.fromInt <| Bitwise.and 255 <| Bitwise.shiftRightBy 24 mask)
         ++ "."
@@ -151,8 +142,7 @@ newFactoryDevies =
 type alias Model =
     { gig1IpAddressInput : String
     , gig1IpAddress : Maybe IpAddress
-    , gig1PrefixLenInput : String
-    , gig1PrefixLen : Maybe PrefixLen
+    , gig1PrefixLen : PrefixLen
     , numberOfDevice : Int
     , factoryDeviceInputs : Array FactoryDeviceInput
     , factoryDevices : Maybe (Array FactoryDevice)
@@ -181,7 +171,7 @@ toJsonOutput model =
 
         validate : Model -> Maybe (List ( String, Encode.Value ))
         validate m =
-            Maybe.map3 buildEncoderInput m.gig1IpAddress m.gig1PrefixLen m.factoryDevices
+            Maybe.map3 buildEncoderInput m.gig1IpAddress (Just m.gig1PrefixLen) m.factoryDevices
     in
     case validate model of
         Just values ->
@@ -201,11 +191,10 @@ init =
     generateJson
         { gig1IpAddressInput = ""
         , gig1IpAddress = Nothing
-        , gig1PrefixLenInput = ""
-        , gig1PrefixLen = Nothing
-        , numberOfDevice = 0
-        , factoryDeviceInputs = Array.empty
-        , factoryDevices = Nothing
+        , gig1PrefixLen = PrefixLen 24
+        , numberOfDevice = 1
+        , factoryDeviceInputs = Array.fromList [ FactoryDeviceInput "" "" ]
+        , factoryDevices = newFactoryDevies <| Array.fromList [ FactoryDeviceInput "" "" ]
         , jsonOutput = ""
         , debugString = ""
         }
@@ -217,8 +206,9 @@ init =
 
 type Msg
     = OnChangeGig1IpAddressInput String
-    | OnChangeGig1PrefixLenInput String
-    | OnChangeNumberOfDevice Int
+    | OnChangeGig1PrefixLen PrefixLen
+    | IncNumberOfDevice
+    | DecNumberOfDevice
     | OnChangeFactoryDeviceInput Int String String
 
 
@@ -228,27 +218,40 @@ update msg model =
         OnChangeGig1IpAddressInput str ->
             generateJson { model | gig1IpAddressInput = str, gig1IpAddress = newIpAddress str }
 
-        OnChangeGig1PrefixLenInput str ->
-            generateJson { model | gig1PrefixLenInput = str, gig1PrefixLen = newPrefixLen str }
+        OnChangeGig1PrefixLen n ->
+            generateJson { model | gig1PrefixLen = n }
 
-        OnChangeNumberOfDevice n ->
+        IncNumberOfDevice ->
             let
-                resizeDeviceInputs =
-                    if n <= model.numberOfDevice then
-                        Array.slice 0 n model.factoryDeviceInputs
-
-                    else
-                        Array.append model.factoryDeviceInputs <| Array.repeat (n - model.numberOfDevice) <| FactoryDeviceInput "" ""
-
-                placeHolder =
-                    List.repeat n ()
+                newFactoryDeviceInputs =
+                    Array.push (FactoryDeviceInput "" "") model.factoryDeviceInputs
             in
-            generateJson
-                { model
-                    | numberOfDevice = n
-                    , factoryDeviceInputs = resizeDeviceInputs
-                    , factoryDevices = newFactoryDevies resizeDeviceInputs
-                }
+            if model.numberOfDevice >= 23 then
+                model
+
+            else
+                generateJson
+                    { model
+                        | numberOfDevice = model.numberOfDevice + 1
+                        , factoryDeviceInputs = newFactoryDeviceInputs
+                        , factoryDevices = newFactoryDevies newFactoryDeviceInputs
+                    }
+
+        DecNumberOfDevice ->
+            let
+                newFactoryDeviceInputs =
+                    Array.slice 0 (Array.length model.factoryDeviceInputs - 1) model.factoryDeviceInputs
+            in
+            if model.numberOfDevice <= 1 then
+                model
+
+            else
+                generateJson
+                    { model
+                        | numberOfDevice = model.numberOfDevice - 1
+                        , factoryDeviceInputs = newFactoryDeviceInputs
+                        , factoryDevices = newFactoryDevies newFactoryDeviceInputs
+                    }
 
         OnChangeFactoryDeviceInput index addr gw ->
             let
@@ -272,13 +275,16 @@ view model =
         column []
             [ row [ padding 10 ] [ text "Kinetic GMM JSON Configuration Generator for IR809" ]
             , row [ padding 10 ] [ inputGe1Address model.gig1IpAddressInput ]
-            , row [ padding 10 ] [ inputGe1PrefixLen model.gig1PrefixLenInput ]
-            , row [ padding 10, spacing 7 ]
-                [ inputNumberOfDevice model.numberOfDevice, text <| String.fromInt model.numberOfDevice ]
+            , row [ padding 10, spacing 10 ]
+                [ inputGe1PrefixLen model.gig1PrefixLen, text <| String.fromInt <| prefixLenToInt model.gig1PrefixLen ]
+            , row [ padding 10, spacing 10 ]
+                [ el [ Font.bold ] <| text "Number of Device 1 - 23"
+                , decNumberOfDevice
+                , el [ width <| px 30 ] <| el [ Element.alignRight ] <| text <| String.fromInt model.numberOfDevice
+                , incNumberOfDevice
+                ]
             , row [ padding 10 ] [ inputFactoryDevices model.factoryDeviceInputs ]
             , row [ padding 10 ] [ text "Debug: ", text model.debugString ]
-
-            -- , row [ padding 10 ] [ text model.gig1IpAddr ]
             , row [ width fill, Font.family [ Font.typeface "courier", Font.monospace ] ]
                 [ el [ padding 7, Border.width 1, width fill ] <| text model.jsonOutput ]
             ]
@@ -290,22 +296,12 @@ inputGe1Address str =
         { onChange = OnChangeGig1IpAddressInput
         , text = str
         , placeholder = Just <| Input.placeholder [] <| text "192.168.100.1"
-        , label = Input.labelLeft [ centerY ] <| el [ Font.bold ] <| text "GE1 IP addresss"
+        , label = Input.labelLeft [ centerY ] <| el [ Font.bold ] <| text "GE1 IP Addresss"
         }
 
 
-inputGe1PrefixLen : String -> Element Msg
-inputGe1PrefixLen str =
-    Input.text []
-        { onChange = OnChangeGig1PrefixLenInput
-        , text = str
-        , placeholder = Just <| Input.placeholder [] <| text "24"
-        , label = Input.labelLeft [ centerY ] <| el [ Font.bold ] <| text "Prefix Length"
-        }
-
-
-inputNumberOfDevice : Int -> Element Msg
-inputNumberOfDevice n =
+inputGe1PrefixLen : PrefixLen -> Element Msg
+inputGe1PrefixLen (PrefixLen n) =
     Input.slider
         [ width (px 300)
         , Element.behindContent
@@ -319,13 +315,29 @@ inputNumberOfDevice n =
                 Element.none
             )
         ]
-        { onChange = OnChangeNumberOfDevice << round
-        , label = Input.labelLeft [ centerY ] <| el [ Font.bold ] <| text "Number of Device 0 - 23"
-        , min = 0
-        , max = 23
+        { onChange = OnChangeGig1PrefixLen << PrefixLen << round
+        , label = Input.labelLeft [ centerY ] <| el [ Font.bold ] <| text "Prefix Length 8 - 30"
+        , min = 8
+        , max = 30
         , value = toFloat n
         , thumb = Input.defaultThumb
         , step = Just 1
+        }
+
+
+incNumberOfDevice : Element Msg
+incNumberOfDevice =
+    Input.button [ padding 10, Border.width 1, Border.rounded 3 ]
+        { onPress = Just IncNumberOfDevice
+        , label = text " + "
+        }
+
+
+decNumberOfDevice : Element Msg
+decNumberOfDevice =
+    Input.button [ padding 10, Border.width 1, Border.rounded 3 ]
+        { onPress = Just DecNumberOfDevice
+        , label = text " - "
         }
 
 
