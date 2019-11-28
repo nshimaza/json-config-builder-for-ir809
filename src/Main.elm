@@ -75,6 +75,11 @@ newIpAddress str =
             Nothing
 
 
+ipAddressToInt : IpAddress -> Int
+ipAddressToInt (IpAddress (Octet o1) (Octet o2) (Octet o3) (Octet o4)) =
+    Bitwise.shiftLeftBy 24 o1 + Bitwise.shiftLeftBy 16 o2 + Bitwise.shiftLeftBy 8 o3 + o4
+
+
 ipAddressToString : IpAddress -> String
 ipAddressToString (IpAddress (Octet o1) (Octet o2) (Octet o3) (Octet o4)) =
     String.fromInt o1 ++ "." ++ String.fromInt o2 ++ "." ++ String.fromInt o3 ++ "." ++ String.fromInt o4
@@ -102,11 +107,16 @@ prefixLenToInt (PrefixLen len) =
     len
 
 
+prefixLenToBitmask : PrefixLen -> Int
+prefixLenToBitmask (PrefixLen len) =
+    0xFFFFFFFF - (2 ^ (32 - len) - 1)
+
+
 prefixLenToMask : PrefixLen -> String
-prefixLenToMask (PrefixLen len) =
+prefixLenToMask prefixLen =
     let
         mask =
-            0xFFFFFFFF - (2 ^ (32 - len) - 1)
+            prefixLenToBitmask prefixLen
     in
     (String.fromInt <| Bitwise.and 255 <| Bitwise.shiftRightBy 24 mask)
         ++ "."
@@ -115,6 +125,21 @@ prefixLenToMask (PrefixLen len) =
         ++ (String.fromInt <| Bitwise.and 255 <| Bitwise.shiftRightBy 8 mask)
         ++ "."
         ++ (String.fromInt <| Bitwise.and 255 mask)
+
+
+isHostAddr : IpAddress -> PrefixLen -> Bool
+isHostAddr addr prefixLen =
+    let
+        hostMask =
+            Bitwise.xor 0xFFFFFFFF <| prefixLenToBitmask prefixLen
+
+        addrBits =
+            ipAddressToInt addr
+
+        hostBits =
+            Bitwise.and addrBits hostMask
+    in
+    hostBits /= 0 && hostBits /= hostMask
 
 
 type alias FactoryDevice =
@@ -141,6 +166,7 @@ newFactoryDevies =
 
 type alias Model =
     { gig1IpAddressInput : String
+    , gig1IpAddressError : Maybe String
     , gig1IpAddress : Maybe IpAddress
     , gig1PrefixLen : PrefixLen
     , numberOfDevice : Int
@@ -190,6 +216,7 @@ init : Model
 init =
     generateJson
         { gig1IpAddressInput = ""
+        , gig1IpAddressError = Just errInvalidGig1IpAddress
         , gig1IpAddress = Nothing
         , gig1PrefixLen = PrefixLen 24
         , numberOfDevice = 1
@@ -198,6 +225,16 @@ init =
         , jsonOutput = ""
         , debugString = ""
         }
+
+
+errInvalidGig1IpAddress : String
+errInvalidGig1IpAddress =
+    "GE1 IP Address must be a valid IPv4 address (e.g. 192.168.100.1)."
+
+
+errGig1IpAddressMustNotNetworkAddress : String
+errGig1IpAddressMustNotNetworkAddress =
+    "Neither network address nor broadcast address allowed.  Check Prefix Length too."
 
 
 
@@ -214,12 +251,44 @@ type Msg
 
 update : Msg -> Model -> Model
 update msg model =
+    let
+        validateGi1IpAddress : String -> PrefixLen -> ( Maybe String, Maybe IpAddress )
+        validateGi1IpAddress str prefixLen =
+            case newIpAddress str of
+                Nothing ->
+                    ( Just errInvalidGig1IpAddress, Nothing )
+
+                Just addr ->
+                    if isHostAddr addr prefixLen then
+                        ( Nothing, Just addr )
+
+                    else
+                        ( Just errGig1IpAddressMustNotNetworkAddress, Nothing )
+    in
     case msg of
         OnChangeGig1IpAddressInput str ->
-            generateJson { model | gig1IpAddressInput = str, gig1IpAddress = newIpAddress str }
+            let
+                ( err, address ) =
+                    validateGi1IpAddress str model.gig1PrefixLen
+            in
+            generateJson
+                { model
+                    | gig1IpAddressInput = str
+                    , gig1IpAddressError = err
+                    , gig1IpAddress = address
+                }
 
         OnChangeGig1PrefixLen n ->
-            generateJson { model | gig1PrefixLen = n }
+            let
+                ( err, address ) =
+                    validateGi1IpAddress model.gig1IpAddressInput n
+            in
+            generateJson
+                { model
+                    | gig1PrefixLen = n
+                    , gig1IpAddressError = err
+                    , gig1IpAddress = address
+                }
 
         IncNumberOfDevice ->
             let
@@ -274,7 +343,7 @@ view model =
     Element.layout [ padding 7 ] <|
         column []
             [ row [ padding 10 ] [ text "Kinetic GMM JSON Configuration Generator for IR809" ]
-            , row [ padding 10 ] [ inputGe1Address model.gig1IpAddressInput ]
+            , row [ padding 10, spacing 10 ] <| inputGe1Address model.gig1IpAddressInput model.gig1IpAddressError
             , row [ padding 10, spacing 10 ]
                 [ inputGe1PrefixLen model.gig1PrefixLen, text <| String.fromInt <| prefixLenToInt model.gig1PrefixLen ]
             , row [ padding 10, spacing 10 ]
@@ -290,14 +359,23 @@ view model =
             ]
 
 
-inputGe1Address : String -> Element Msg
-inputGe1Address str =
-    Input.text []
+inputGe1Address : String -> Maybe String -> List (Element Msg)
+inputGe1Address str err =
+    [ Input.text
+        (case err of
+            Just _ ->
+                [ Border.color <| rgb255 255 0 0 ]
+
+            Nothing ->
+                []
+        )
         { onChange = OnChangeGig1IpAddressInput
         , text = str
         , placeholder = Just <| Input.placeholder [] <| text "192.168.100.1"
         , label = Input.labelLeft [ centerY ] <| el [ Font.bold ] <| text "GE1 IP Addresss"
         }
+    , el [ Font.color <| rgb255 255 0 0 ] <| text <| Maybe.withDefault "" err
+    ]
 
 
 inputGe1PrefixLen : PrefixLen -> Element Msg
