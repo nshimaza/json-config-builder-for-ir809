@@ -112,8 +112,8 @@ prefixLenToBitmask (PrefixLen len) =
     0xFFFFFFFF - (2 ^ (32 - len) - 1)
 
 
-prefixLenToMask : PrefixLen -> String
-prefixLenToMask prefixLen =
+prefixLenToNetmask : PrefixLen -> String
+prefixLenToNetmask prefixLen =
     let
         mask =
             prefixLenToBitmask prefixLen
@@ -125,6 +125,34 @@ prefixLenToMask prefixLen =
         ++ (String.fromInt <| Bitwise.and 255 <| Bitwise.shiftRightBy 8 mask)
         ++ "."
         ++ (String.fromInt <| Bitwise.and 255 mask)
+
+
+prefixLenToHostBitmask : PrefixLen -> Int
+prefixLenToHostBitmask prefixLen =
+    Bitwise.xor 0xFFFFFFFF <| prefixLenToBitmask prefixLen
+
+
+isNetworkAddr : IpAddress -> PrefixLen -> Bool
+isNetworkAddr addr prefixLen =
+    Bitwise.and (ipAddressToInt addr) (prefixLenToHostBitmask prefixLen) == 0
+
+
+isBroadcastAddr : IpAddress -> PrefixLen -> Bool
+isBroadcastAddr addr prefixLen =
+    let
+        hostMask =
+            prefixLenToHostBitmask prefixLen
+    in
+    Bitwise.and (ipAddressToInt addr) hostMask == hostMask
+
+
+isSameNetwork : IpAddress -> IpAddress -> PrefixLen -> Bool
+isSameNetwork addr1 addr2 prefixLen =
+    let
+        networkMask =
+            prefixLenToBitmask prefixLen
+    in
+    Bitwise.and (ipAddressToInt addr1) networkMask == Bitwise.and (ipAddressToInt addr1) networkMask
 
 
 isHostAddr : IpAddress -> PrefixLen -> Bool
@@ -142,6 +170,12 @@ isHostAddr addr prefixLen =
     hostBits /= 0 && hostBits /= hostMask
 
 
+type alias Gig1IpAddressInput =
+    { address : String
+    , error : Maybe String
+    }
+
+
 type alias FactoryDevice =
     { address : IpAddress
     , gateway : IpAddress
@@ -151,6 +185,19 @@ type alias FactoryDevice =
 type alias FactoryDeviceInput =
     { address : String
     , gateway : String
+    , isValidAddress : Bool
+    , isValidGateway : Bool
+    , error : Maybe String
+    }
+
+
+emptyFactoryDeviceInput : FactoryDeviceInput
+emptyFactoryDeviceInput =
+    { address = ""
+    , gateway = ""
+    , isValidAddress = False
+    , isValidGateway = False
+    , error = Just errInvalidIpAddress
     }
 
 
@@ -165,8 +212,7 @@ newFactoryDevies =
 
 
 type alias Model =
-    { gig1IpAddressInput : String
-    , gig1IpAddressError : Maybe String
+    { gig1IpAddressInput : Gig1IpAddressInput
     , gig1IpAddress : Maybe IpAddress
     , gig1PrefixLen : PrefixLen
     , numberOfDevice : Int
@@ -191,7 +237,7 @@ toJsonOutput model =
         buildEncoderInput addr prefix devices =
             [ ( "gig1IpAddress", Encode.string <| ipAddressToString addr )
             , ( "gig1PrefixLen", Encode.int <| prefixLenToInt prefix )
-            , ( "gig1Netmask", Encode.string <| prefixLenToMask prefix )
+            , ( "gig1Netmask", Encode.string <| prefixLenToNetmask prefix )
             , ( "factoryDevices", Encode.array factoryDeviceToJsonValue devices )
             ]
 
@@ -215,26 +261,40 @@ generateJson model =
 init : Model
 init =
     generateJson
-        { gig1IpAddressInput = ""
-        , gig1IpAddressError = Just errInvalidGig1IpAddress
+        { gig1IpAddressInput = Gig1IpAddressInput "" <| Just errInvalidIpAddress
         , gig1IpAddress = Nothing
         , gig1PrefixLen = PrefixLen 24
         , numberOfDevice = 1
-        , factoryDeviceInputs = Array.fromList [ FactoryDeviceInput "" "" ]
-        , factoryDevices = newFactoryDevies <| Array.fromList [ FactoryDeviceInput "" "" ]
+        , factoryDeviceInputs = Array.fromList [ emptyFactoryDeviceInput ]
+        , factoryDevices = newFactoryDevies <| Array.fromList [ emptyFactoryDeviceInput ]
         , jsonOutput = ""
         , debugString = ""
         }
 
 
-errInvalidGig1IpAddress : String
-errInvalidGig1IpAddress =
-    "GE1 IP Address must be a valid IPv4 address (e.g. 192.168.100.1)."
+errInvalidIpAddress : String
+errInvalidIpAddress =
+    "Input string must be a valid IPv4 address (e.g. 192.168.100.1)."
 
 
-errGig1IpAddressMustNotNetworkAddress : String
-errGig1IpAddressMustNotNetworkAddress =
-    "Neither network address nor broadcast address allowed.  Check Prefix Length too."
+errNetworkAddressIsNotAllowed : String
+errNetworkAddressIsNotAllowed =
+    "Network address is not allowed.  Check Prefix Length too."
+
+
+errBroadcastAddressIsNotAllowed : String
+errBroadcastAddressIsNotAllowed =
+    "Broadcast address is not allowed.  Check Prefix Length too."
+
+
+errSetGig1AddressFirst : String
+errSetGig1AddressFirst =
+    "Set GE1 Address first."
+
+
+errGig1AddressIsNotAllowed : String
+errGig1AddressIsNotAllowed =
+    "Device address and GE1 address can't be same."
 
 
 
@@ -251,87 +311,198 @@ type Msg
 
 update : Msg -> Model -> Model
 update msg model =
-    let
-        validateGi1IpAddress : String -> PrefixLen -> ( Maybe String, Maybe IpAddress )
-        validateGi1IpAddress str prefixLen =
-            case newIpAddress str of
-                Nothing ->
-                    ( Just errInvalidGig1IpAddress, Nothing )
+    -- let
+    --     validateGi1IpAddress : String -> PrefixLen -> ( Maybe String, Maybe IpAddress )
+    --     validateGi1IpAddress str prefixLen =
+    --         case newIpAddress str of
+    --             Nothing ->
+    --                 ( Just errInvalidIpAddress, Nothing )
+    --             Just addr ->
+    --                 if isNetworkAddr addr prefixLen then
+    --                     ( Just errNetworkAddressIsNotAllowed, Nothing )
+    --                 else if isBroadcastAddr addr prefixLen then
+    --                     ( Just errBroadcastAddressIsNotAllowed, Nothing )
+    --                 else
+    --                     ( Nothing, Just addr )
+    -- in
+    generateJson <|
+        validateModel <|
+            case msg of
+                OnChangeGig1IpAddressInput str ->
+                    let
+                        input =
+                            model.gig1IpAddressInput
+                    in
+                    { model | gig1IpAddressInput = { input | address = str } }
 
-                Just addr ->
-                    if isHostAddr addr prefixLen then
-                        ( Nothing, Just addr )
+                -- let
+                --     ( err, address ) =
+                --         validateGi1IpAddress str model.gig1PrefixLen
+                -- in
+                -- generateJson
+                --     { model
+                --         | gig1IpAddressInput = Gig1IpAddressInput str err
+                --         , gig1IpAddress = address
+                --     }
+                OnChangeGig1PrefixLen n ->
+                    { model | gig1PrefixLen = n }
+
+                -- let
+                --     ( err, address ) =
+                --         validateGi1IpAddress model.gig1IpAddressInput.address n
+                -- in
+                -- generateJson
+                --     { model
+                --         | gig1PrefixLen = n
+                --         , gig1IpAddressInput = Gig1IpAddressInput model.gig1IpAddressInput.address err
+                --         , gig1IpAddress = address
+                --     }
+                IncNumberOfDevice ->
+                    let
+                        newFactoryDeviceInputs =
+                            Array.push emptyFactoryDeviceInput model.factoryDeviceInputs
+                    in
+                    if model.numberOfDevice >= 23 then
+                        model
 
                     else
-                        ( Just errGig1IpAddressMustNotNetworkAddress, Nothing )
+                        generateJson
+                            { model
+                                | numberOfDevice = model.numberOfDevice + 1
+                                , factoryDeviceInputs = newFactoryDeviceInputs
+                                , factoryDevices = newFactoryDevies newFactoryDeviceInputs
+                            }
+
+                DecNumberOfDevice ->
+                    let
+                        newFactoryDeviceInputs =
+                            Array.slice 0 (Array.length model.factoryDeviceInputs - 1) model.factoryDeviceInputs
+                    in
+                    if model.numberOfDevice <= 1 then
+                        model
+
+                    else
+                        generateJson
+                            { model
+                                | numberOfDevice = model.numberOfDevice - 1
+                                , factoryDeviceInputs = newFactoryDeviceInputs
+                                , factoryDevices = newFactoryDevies newFactoryDeviceInputs
+                            }
+
+                OnChangeFactoryDeviceInput index addrStr gwStr ->
+                    let
+                        ( err, gw ) =
+                            case newIpAddress addrStr of
+                                Nothing ->
+                                    ( Just errInvalidIpAddress, gwStr )
+
+                                Just addr ->
+                                    case model.gig1IpAddress of
+                                        Nothing ->
+                                            ( Just errSetGig1AddressFirst, gwStr )
+
+                                        Just gig1addr ->
+                                            if isSameNetwork addr gig1addr model.gig1PrefixLen then
+                                                ( Nothing, addrStr )
+
+                                            else
+                                                ( Nothing, gwStr )
+
+                        updateFactoryDeviceInputs =
+                            let
+                                entry =
+                                    { address = addrStr, gateway = gw, isValidAddress = False, isValidGateway = True, error = err }
+                            in
+                            Array.set index entry model.factoryDeviceInputs
+                    in
+                    generateJson
+                        { model
+                            | factoryDeviceInputs = updateFactoryDeviceInputs
+                            , factoryDevices = newFactoryDevies updateFactoryDeviceInputs
+                        }
+
+
+validateModel : Model -> Model
+validateModel model =
+    let
+        validateGig1Input : Model -> Model
+        validateGig1Input m =
+            let
+                input =
+                    m.gig1IpAddressInput
+
+                validateGi1IpAddress : String -> PrefixLen -> ( Maybe String, Maybe IpAddress )
+                validateGi1IpAddress str prefixLen =
+                    case newIpAddress str of
+                        Nothing ->
+                            ( Just errInvalidIpAddress, Nothing )
+
+                        Just decodedAddr ->
+                            if isNetworkAddr decodedAddr prefixLen then
+                                ( Just errNetworkAddressIsNotAllowed, Nothing )
+
+                            else if isBroadcastAddr decodedAddr prefixLen then
+                                ( Just errBroadcastAddressIsNotAllowed, Nothing )
+
+                            else
+                                ( Nothing, Just decodedAddr )
+
+                ( err, addr ) =
+                    validateGi1IpAddress input.address m.gig1PrefixLen
+            in
+            { m | gig1IpAddressInput = { input | error = err }, gig1IpAddress = addr }
+
+        validateDeviceAddress : String -> ( Bool, Maybe String, Maybe IpAddress )
+        validateDeviceAddress str =
+            case model.gig1IpAddress of
+                Nothing ->
+                    ( False, Just errSetGig1AddressFirst, Nothing )
+
+                Just gig1addr ->
+                    case newIpAddress str of
+                        Nothing ->
+                            ( False, Just errInvalidIpAddress, Nothing )
+
+                        Just addr ->
+                            if not <| isSameNetwork addr gig1addr model.gig1PrefixLen then
+                                ( True, Nothing, Just addr )
+
+                            else if isNetworkAddr addr model.gig1PrefixLen then
+                                ( False, Just errNetworkAddressIsNotAllowed, Nothing )
+
+                            else if isBroadcastAddr addr model.gig1PrefixLen then
+                                ( False, Just errBroadcastAddressIsNotAllowed, Nothing )
+
+                            else if addr == gig1addr then
+                                ( False, Just errGig1AddressIsNotAllowed, Nothing )
+
+                            else
+                                ( True, Nothing, Just addr )
+
+        validateDeviceGateway : String -> ( Bool, Maybe String, Maybe IpAddress )
+        validateDeviceGateway str =
+            ( True, Nothing, Nothing )
+
+        validateDeviceInput : FactoryDeviceInput -> FactoryDeviceInput
+        validateDeviceInput input =
+            let
+                ( validAddress, errInAddress, deviceAddress ) =
+                    validateDeviceAddress input.address
+
+                ( validGateway, errInGateway, deviceGateway ) =
+                    validateDeviceGateway input.gateway
+            in
+            if not validAddress then
+                { input | isValidAddress = False, error = errInAddress }
+
+            else
+                { input | isValidAddress = True, error = errInAddress }
+
+        -- validateDeviceInputs : Model -> Model
+        -- validateDeviceInputs m =
+        --     Array.map validateDeviceInput m.factoryDeviceInputs
     in
-    case msg of
-        OnChangeGig1IpAddressInput str ->
-            let
-                ( err, address ) =
-                    validateGi1IpAddress str model.gig1PrefixLen
-            in
-            generateJson
-                { model
-                    | gig1IpAddressInput = str
-                    , gig1IpAddressError = err
-                    , gig1IpAddress = address
-                }
-
-        OnChangeGig1PrefixLen n ->
-            let
-                ( err, address ) =
-                    validateGi1IpAddress model.gig1IpAddressInput n
-            in
-            generateJson
-                { model
-                    | gig1PrefixLen = n
-                    , gig1IpAddressError = err
-                    , gig1IpAddress = address
-                }
-
-        IncNumberOfDevice ->
-            let
-                newFactoryDeviceInputs =
-                    Array.push (FactoryDeviceInput "" "") model.factoryDeviceInputs
-            in
-            if model.numberOfDevice >= 23 then
-                model
-
-            else
-                generateJson
-                    { model
-                        | numberOfDevice = model.numberOfDevice + 1
-                        , factoryDeviceInputs = newFactoryDeviceInputs
-                        , factoryDevices = newFactoryDevies newFactoryDeviceInputs
-                    }
-
-        DecNumberOfDevice ->
-            let
-                newFactoryDeviceInputs =
-                    Array.slice 0 (Array.length model.factoryDeviceInputs - 1) model.factoryDeviceInputs
-            in
-            if model.numberOfDevice <= 1 then
-                model
-
-            else
-                generateJson
-                    { model
-                        | numberOfDevice = model.numberOfDevice - 1
-                        , factoryDeviceInputs = newFactoryDeviceInputs
-                        , factoryDevices = newFactoryDevies newFactoryDeviceInputs
-                    }
-
-        OnChangeFactoryDeviceInput index addr gw ->
-            let
-                updateFactoryDeviceInputs =
-                    Array.set index { address = addr, gateway = gw } model.factoryDeviceInputs
-            in
-            generateJson
-                { model
-                    | factoryDeviceInputs = updateFactoryDeviceInputs
-                    , factoryDevices = newFactoryDevies updateFactoryDeviceInputs
-                }
+    validateGig1Input model
 
 
 
@@ -343,7 +514,7 @@ view model =
     Element.layout [ padding 7 ] <|
         column []
             [ row [ padding 10 ] [ text "Kinetic GMM JSON Configuration Generator for IR809" ]
-            , row [ padding 10, spacing 10 ] <| inputGe1Address model.gig1IpAddressInput model.gig1IpAddressError
+            , row [ padding 10, spacing 10 ] <| inputGe1Address model.gig1IpAddressInput
             , row [ padding 10, spacing 10 ]
                 [ inputGe1PrefixLen model.gig1PrefixLen, text <| String.fromInt <| prefixLenToInt model.gig1PrefixLen ]
             , row [ padding 10, spacing 10 ]
@@ -359,10 +530,10 @@ view model =
             ]
 
 
-inputGe1Address : String -> Maybe String -> List (Element Msg)
-inputGe1Address str err =
+inputGe1Address : Gig1IpAddressInput -> List (Element Msg)
+inputGe1Address input =
     [ Input.text
-        (case err of
+        (case input.error of
             Just _ ->
                 [ Border.color <| rgb255 255 0 0 ]
 
@@ -370,11 +541,11 @@ inputGe1Address str err =
                 []
         )
         { onChange = OnChangeGig1IpAddressInput
-        , text = str
+        , text = input.address
         , placeholder = Just <| Input.placeholder [] <| text "192.168.100.1"
         , label = Input.labelLeft [ centerY ] <| el [ Font.bold ] <| text "GE1 IP Addresss"
         }
-    , el [ Font.color <| rgb255 255 0 0 ] <| text <| Maybe.withDefault "" err
+    , el [ Font.color <| rgb255 255 0 0 ] <| text <| Maybe.withDefault "" input.error
     ]
 
 
@@ -421,7 +592,7 @@ decNumberOfDevice =
 
 inputFactoryDevices : Array FactoryDeviceInput -> Element Msg
 inputFactoryDevices data =
-    Element.indexedTable []
+    Element.indexedTable [ spacing 5 ]
         { data = Array.toList data
         , columns =
             [ { header = text "Address"
@@ -449,6 +620,12 @@ inputFactoryDevices data =
                             , placeholder = Just <| Input.placeholder [] <| text <| "192.168.100." ++ String.fromInt (n + 2)
                             , label = Input.labelHidden "Gateway IP to the Device"
                             }
+              }
+            , { header = text ""
+              , width = fill
+              , view =
+                    \_ deviceInput ->
+                        el [ centerY, Font.color <| rgb255 255 0 0 ] <| text <| Maybe.withDefault "" deviceInput.error
               }
             ]
         }
