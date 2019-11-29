@@ -4487,25 +4487,24 @@ function _Browser_load(url)
 		}
 	}));
 }
-var author$project$Main$Gig1IpAddressInput = F2(
-	function (address, error) {
-		return {address: address, error: error};
+var author$project$Main$Gig1IpAddress = F2(
+	function (addressInput, address) {
+		return {address: address, addressInput: addressInput};
 	});
 var author$project$Main$PrefixLen = function (a) {
 	return {$: 'PrefixLen', a: a};
 };
+var author$project$Main$errSetGig1AddressFirst = 'Set GE1 Address first.';
+var elm$core$Result$Err = function (a) {
+	return {$: 'Err', a: a};
+};
+var author$project$Main$emptyFactoryDevice = {
+	address: elm$core$Result$Err(author$project$Main$errSetGig1AddressFirst),
+	addressInput: '',
+	gateway: elm$core$Result$Err(author$project$Main$errSetGig1AddressFirst),
+	gatewayInput: ''
+};
 var author$project$Main$errInvalidIpAddress = 'Input string must be a valid IPv4 address (e.g. 192.168.100.1).';
-var elm$core$Basics$False = {$: 'False'};
-var elm$core$Maybe$Just = function (a) {
-	return {$: 'Just', a: a};
-};
-var author$project$Main$emptyFactoryDeviceInput = {
-	address: '',
-	error: elm$core$Maybe$Just(author$project$Main$errInvalidIpAddress),
-	gateway: '',
-	isValidAddress: false,
-	isValidGateway: false
-};
 var elm$core$Elm$JsArray$foldr = _JsArray_foldr;
 var elm$core$Array$foldr = F3(
 	function (func, baseCase, _n0) {
@@ -4587,6 +4586,9 @@ var elm$core$Set$toList = function (_n0) {
 	return elm$core$Dict$keys(dict);
 };
 var elm$core$Basics$append = _Utils_append;
+var elm$core$Maybe$Just = function (a) {
+	return {$: 'Just', a: a};
+};
 var elm$core$Maybe$Nothing = {$: 'Nothing'};
 var elm$core$String$fromInt = _String_fromNumber;
 var author$project$Main$ipAddressToString = function (_n0) {
@@ -4616,46 +4618,150 @@ var author$project$Main$prefixLenToNetmask = function (prefixLen) {
 	var mask = author$project$Main$prefixLenToBitmask(prefixLen);
 	return elm$core$String$fromInt(255 & (mask >> 24)) + ('.' + (elm$core$String$fromInt(255 & (mask >> 16)) + ('.' + (elm$core$String$fromInt(255 & (mask >> 8)) + ('.' + elm$core$String$fromInt(255 & mask))))));
 };
-var elm$core$Maybe$map3 = F4(
-	function (func, ma, mb, mc) {
-		if (ma.$ === 'Nothing') {
-			return elm$core$Maybe$Nothing;
-		} else {
-			var a = ma.a;
-			if (mb.$ === 'Nothing') {
-				return elm$core$Maybe$Nothing;
+var elm$core$Basics$composeL = F3(
+	function (g, f, x) {
+		return g(
+			f(x));
+	});
+var elm$core$Basics$add = _Basics_add;
+var elm$core$Basics$gt = _Utils_gt;
+var elm$core$List$foldl = F3(
+	function (func, acc, list) {
+		foldl:
+		while (true) {
+			if (!list.b) {
+				return acc;
 			} else {
-				var b = mb.a;
-				if (mc.$ === 'Nothing') {
-					return elm$core$Maybe$Nothing;
+				var x = list.a;
+				var xs = list.b;
+				var $temp$func = func,
+					$temp$acc = A2(func, x, acc),
+					$temp$list = xs;
+				func = $temp$func;
+				acc = $temp$acc;
+				list = $temp$list;
+				continue foldl;
+			}
+		}
+	});
+var elm$core$List$reverse = function (list) {
+	return A3(elm$core$List$foldl, elm$core$List$cons, _List_Nil, list);
+};
+var elm$core$List$foldrHelper = F4(
+	function (fn, acc, ctr, ls) {
+		if (!ls.b) {
+			return acc;
+		} else {
+			var a = ls.a;
+			var r1 = ls.b;
+			if (!r1.b) {
+				return A2(fn, a, acc);
+			} else {
+				var b = r1.a;
+				var r2 = r1.b;
+				if (!r2.b) {
+					return A2(
+						fn,
+						a,
+						A2(fn, b, acc));
 				} else {
-					var c = mc.a;
-					return elm$core$Maybe$Just(
+					var c = r2.a;
+					var r3 = r2.b;
+					if (!r3.b) {
+						return A2(
+							fn,
+							a,
+							A2(
+								fn,
+								b,
+								A2(fn, c, acc)));
+					} else {
+						var d = r3.a;
+						var r4 = r3.b;
+						var res = (ctr > 500) ? A3(
+							elm$core$List$foldl,
+							fn,
+							acc,
+							elm$core$List$reverse(r4)) : A4(elm$core$List$foldrHelper, fn, acc, ctr + 1, r4);
+						return A2(
+							fn,
+							a,
+							A2(
+								fn,
+								b,
+								A2(
+									fn,
+									c,
+									A2(fn, d, res))));
+					}
+				}
+			}
+		}
+	});
+var elm$core$List$foldr = F3(
+	function (fn, acc, ls) {
+		return A4(elm$core$List$foldrHelper, fn, acc, 0, ls);
+	});
+var elm$core$List$map = F2(
+	function (f, xs) {
+		return A3(
+			elm$core$List$foldr,
+			F2(
+				function (x, acc) {
+					return A2(
+						elm$core$List$cons,
+						f(x),
+						acc);
+				}),
+			_List_Nil,
+			xs);
+	});
+var elm$core$Result$Ok = function (a) {
+	return {$: 'Ok', a: a};
+};
+var elm$core$Result$map2 = F3(
+	function (func, ra, rb) {
+		if (ra.$ === 'Err') {
+			var x = ra.a;
+			return elm$core$Result$Err(x);
+		} else {
+			var a = ra.a;
+			if (rb.$ === 'Err') {
+				var x = rb.a;
+				return elm$core$Result$Err(x);
+			} else {
+				var b = rb.a;
+				return elm$core$Result$Ok(
+					A2(func, a, b));
+			}
+		}
+	});
+var elm$core$Result$map3 = F4(
+	function (func, ra, rb, rc) {
+		if (ra.$ === 'Err') {
+			var x = ra.a;
+			return elm$core$Result$Err(x);
+		} else {
+			var a = ra.a;
+			if (rb.$ === 'Err') {
+				var x = rb.a;
+				return elm$core$Result$Err(x);
+			} else {
+				var b = rb.a;
+				if (rc.$ === 'Err') {
+					var x = rc.a;
+					return elm$core$Result$Err(x);
+				} else {
+					var c = rc.a;
+					return elm$core$Result$Ok(
 						A3(func, a, b, c));
 				}
 			}
 		}
 	});
-var elm$core$Elm$JsArray$foldl = _JsArray_foldl;
-var elm$core$Array$foldl = F3(
-	function (func, baseCase, _n0) {
-		var tree = _n0.c;
-		var tail = _n0.d;
-		var helper = F2(
-			function (node, acc) {
-				if (node.$ === 'SubTree') {
-					var subTree = node.a;
-					return A3(elm$core$Elm$JsArray$foldl, helper, acc, subTree);
-				} else {
-					var values = node.a;
-					return A3(elm$core$Elm$JsArray$foldl, func, acc, values);
-				}
-			});
-		return A3(
-			elm$core$Elm$JsArray$foldl,
-			func,
-			A3(elm$core$Elm$JsArray$foldl, helper, baseCase, tree),
-			tail);
+var elm$core$Tuple$pair = F2(
+	function (a, b) {
+		return _Utils_Tuple2(a, b);
 	});
 var elm$core$Array$branchFactor = 32;
 var elm$core$Array$Array_elm_builtin = F4(
@@ -4680,28 +4786,6 @@ var elm$core$Array$SubTree = function (a) {
 	return {$: 'SubTree', a: a};
 };
 var elm$core$Elm$JsArray$initializeFromList = _JsArray_initializeFromList;
-var elm$core$List$foldl = F3(
-	function (func, acc, list) {
-		foldl:
-		while (true) {
-			if (!list.b) {
-				return acc;
-			} else {
-				var x = list.a;
-				var xs = list.b;
-				var $temp$func = func,
-					$temp$acc = A2(func, x, acc),
-					$temp$list = xs;
-				func = $temp$func;
-				acc = $temp$acc;
-				list = $temp$list;
-				continue foldl;
-			}
-		}
-	});
-var elm$core$List$reverse = function (list) {
-	return A3(elm$core$List$foldl, elm$core$List$cons, _List_Nil, list);
-};
 var elm$core$Array$compressNodes = F2(
 	function (nodes, acc) {
 		compressNodes:
@@ -4749,9 +4833,7 @@ var elm$core$Array$treeFromBuilder = F2(
 			}
 		}
 	});
-var elm$core$Basics$add = _Basics_add;
 var elm$core$Basics$floor = _Basics_floor;
-var elm$core$Basics$gt = _Utils_gt;
 var elm$core$Basics$max = F2(
 	function (x, y) {
 		return (_Utils_cmp(x, y) > 0) ? x : y;
@@ -4781,6 +4863,7 @@ var elm$core$Array$builderToArray = F2(
 				builder.tail);
 		}
 	});
+var elm$core$Basics$False = {$: 'False'};
 var elm$core$Basics$idiv = _Basics_idiv;
 var elm$core$Basics$lt = _Utils_lt;
 var elm$core$Elm$JsArray$initialize = _JsArray_initialize;
@@ -4823,12 +4906,6 @@ var elm$core$Array$initialize = F2(
 			return A5(elm$core$Array$initializeHelp, fn, initialFromIndex, len, _List_Nil, tail);
 		}
 	});
-var elm$core$Result$Err = function (a) {
-	return {$: 'Err', a: a};
-};
-var elm$core$Result$Ok = function (a) {
-	return {$: 'Ok', a: a};
-};
 var elm$core$Basics$True = {$: 'True'};
 var elm$core$Result$isOk = function (result) {
 	if (result.$ === 'Ok') {
@@ -4936,7 +5013,6 @@ var elm$json$Json$Decode$indent = function (str) {
 		'\n    ',
 		A2(elm$core$String$split, '\n', str));
 };
-var elm$json$Json$Encode$encode = _Json_encode;
 var elm$json$Json$Decode$errorOneOf = F2(
 	function (i, error) {
 		return '\n\n(' + (elm$core$String$fromInt(i + 1) + (') ' + elm$json$Json$Decode$indent(
@@ -5040,16 +5116,17 @@ var elm$json$Json$Decode$errorToStringHelp = F2(
 			}
 		}
 	});
-var elm$json$Json$Encode$array = F2(
+var elm$json$Json$Encode$encode = _Json_encode;
+var elm$json$Json$Encode$int = _Json_wrap;
+var elm$json$Json$Encode$list = F2(
 	function (func, entries) {
 		return _Json_wrap(
 			A3(
-				elm$core$Array$foldl,
+				elm$core$List$foldl,
 				_Json_addEntry(func),
 				_Json_emptyArray(_Utils_Tuple0),
 				entries));
 	});
-var elm$json$Json$Encode$int = _Json_wrap;
 var elm$json$Json$Encode$object = function (pairs) {
 	return _Json_wrap(
 		A3(
@@ -5064,21 +5141,37 @@ var elm$json$Json$Encode$object = function (pairs) {
 			pairs));
 };
 var elm$json$Json$Encode$string = _Json_wrap;
+var elm_community$result_extra$Result$Extra$combine = A2(
+	elm$core$List$foldr,
+	elm$core$Result$map2(elm$core$List$cons),
+	elm$core$Result$Ok(_List_Nil));
 var author$project$Main$toJsonOutput = function (model) {
-	var factoryDeviceToJsonValue = function (device) {
+	var factoryDeviceToJsonValue = function (_n1) {
+		var address = _n1.a;
+		var gateway = _n1.b;
 		return elm$json$Json$Encode$object(
 			_List_fromArray(
 				[
 					_Utils_Tuple2(
 					'address',
 					elm$json$Json$Encode$string(
-						author$project$Main$ipAddressToString(device.address))),
+						author$project$Main$ipAddressToString(address))),
 					_Utils_Tuple2(
 					'gateway',
 					elm$json$Json$Encode$string(
-						author$project$Main$ipAddressToString(device.gateway)))
+						author$project$Main$ipAddressToString(gateway)))
 				]));
 	};
+	var combineDevices = A2(
+		elm$core$Basics$composeL,
+		A2(
+			elm$core$Basics$composeL,
+			elm_community$result_extra$Result$Extra$combine,
+			elm$core$List$map(
+				function (d) {
+					return A3(elm$core$Result$map2, elm$core$Tuple$pair, d.address, d.gateway);
+				})),
+		elm$core$Array$toList);
 	var buildEncoderInput = F3(
 		function (addr, prefix, devices) {
 			return _List_fromArray(
@@ -5097,26 +5190,26 @@ var author$project$Main$toJsonOutput = function (model) {
 						author$project$Main$prefixLenToNetmask(prefix))),
 					_Utils_Tuple2(
 					'factoryDevices',
-					A2(elm$json$Json$Encode$array, factoryDeviceToJsonValue, devices))
+					A2(elm$json$Json$Encode$list, factoryDeviceToJsonValue, devices))
 				]);
 		});
 	var validate = function (m) {
 		return A4(
-			elm$core$Maybe$map3,
+			elm$core$Result$map3,
 			buildEncoderInput,
-			m.gig1IpAddress,
-			elm$core$Maybe$Just(m.gig1PrefixLen),
-			m.factoryDevices);
+			m.gig1IpAddress.address,
+			elm$core$Result$Ok(m.gig1PrefixLen),
+			combineDevices(m.factoryDevices));
 	};
 	var _n0 = validate(model);
-	if (_n0.$ === 'Just') {
+	if (_n0.$ === 'Err') {
+		return '';
+	} else {
 		var values = _n0.a;
 		return A2(
 			elm$json$Json$Encode$encode,
 			4,
 			elm$json$Json$Encode$object(values));
-	} else {
-		return '';
 	}
 };
 var author$project$Main$generateJson = function (model) {
@@ -5126,9 +5219,92 @@ var author$project$Main$generateJson = function (model) {
 			jsonOutput: author$project$Main$toJsonOutput(model)
 		});
 };
-var author$project$Main$FactoryDevice = F2(
-	function (address, gateway) {
-		return {address: address, gateway: gateway};
+var elm$core$Array$fromListHelp = F3(
+	function (list, nodeList, nodeListSize) {
+		fromListHelp:
+		while (true) {
+			var _n0 = A2(elm$core$Elm$JsArray$initializeFromList, elm$core$Array$branchFactor, list);
+			var jsArray = _n0.a;
+			var remainingItems = _n0.b;
+			if (_Utils_cmp(
+				elm$core$Elm$JsArray$length(jsArray),
+				elm$core$Array$branchFactor) < 0) {
+				return A2(
+					elm$core$Array$builderToArray,
+					true,
+					{nodeList: nodeList, nodeListSize: nodeListSize, tail: jsArray});
+			} else {
+				var $temp$list = remainingItems,
+					$temp$nodeList = A2(
+					elm$core$List$cons,
+					elm$core$Array$Leaf(jsArray),
+					nodeList),
+					$temp$nodeListSize = nodeListSize + 1;
+				list = $temp$list;
+				nodeList = $temp$nodeList;
+				nodeListSize = $temp$nodeListSize;
+				continue fromListHelp;
+			}
+		}
+	});
+var elm$core$Array$fromList = function (list) {
+	if (!list.b) {
+		return elm$core$Array$empty;
+	} else {
+		return A3(elm$core$Array$fromListHelp, list, _List_Nil, 0);
+	}
+};
+var elm$core$Basics$identity = function (x) {
+	return x;
+};
+var author$project$Main$init = author$project$Main$generateJson(
+	{
+		debugString: '',
+		factoryDevices: elm$core$Array$fromList(
+			_List_fromArray(
+				[author$project$Main$emptyFactoryDevice])),
+		gig1IpAddress: A2(
+			author$project$Main$Gig1IpAddress,
+			'',
+			elm$core$Result$Err(author$project$Main$errInvalidIpAddress)),
+		gig1PrefixLen: author$project$Main$PrefixLen(24),
+		jsonOutput: '',
+		numberOfDevice: 1
+	});
+var author$project$Main$errBroadcastAddressIsNotAllowed = 'Broadcast address is not allowed.  Check Prefix Length too.';
+var author$project$Main$errGatewayMustBelongGig1Network = 'Gateway address must be a host within GE1 subnet.';
+var author$project$Main$errGig1AddressIsNotAllowed = 'Cannot use GE1 address here.';
+var author$project$Main$errNetworkAddressIsNotAllowed = 'Network address is not allowed.  Check Prefix Length too.';
+var elm$core$Bitwise$shiftLeftBy = _Bitwise_shiftLeftBy;
+var author$project$Main$ipAddressToInt = function (_n0) {
+	var o1 = _n0.a.a;
+	var o2 = _n0.b.a;
+	var o3 = _n0.c.a;
+	var o4 = _n0.d.a;
+	return (((o1 << 24) + (o2 << 16)) + (o3 << 8)) + o4;
+};
+var elm$core$Bitwise$xor = _Bitwise_xor;
+var author$project$Main$prefixLenToHostBitmask = A2(
+	elm$core$Basics$composeL,
+	elm$core$Bitwise$xor(4294967295),
+	author$project$Main$prefixLenToBitmask);
+var author$project$Main$isBroadcastAddr = F2(
+	function (addr, prefixLen) {
+		var hostMask = author$project$Main$prefixLenToHostBitmask(prefixLen);
+		return _Utils_eq(
+			author$project$Main$ipAddressToInt(addr) & hostMask,
+			hostMask);
+	});
+var author$project$Main$isNetworkAddr = F2(
+	function (addr, prefixLen) {
+		return !(author$project$Main$ipAddressToInt(addr) & author$project$Main$prefixLenToHostBitmask(prefixLen));
+	});
+var author$project$Main$isSameNetwork = F3(
+	function (addr1, addr2, prefixLen) {
+		var networkMask = author$project$Main$prefixLenToBitmask(prefixLen);
+		return _Utils_eq(
+			author$project$Main$ipAddressToInt(addr1) & networkMask,
+			author$project$Main$ipAddressToInt(addr2) & networkMask);
 	});
 var author$project$Main$IpAddress = F4(
 	function (a, b, c, d) {
@@ -5136,9 +5312,6 @@ var author$project$Main$IpAddress = F4(
 	});
 var author$project$Main$Octet = function (a) {
 	return {$: 'Octet', a: a};
-};
-var elm$core$Basics$identity = function (x) {
-	return x;
 };
 var elm$core$String$toInt = _String_toInt;
 var elm$parser$Parser$Advanced$Bad = F2(
@@ -5429,75 +5602,6 @@ var author$project$Main$ipAddress = A2(
 			author$project$Main$octet,
 			elm$parser$Parser$symbol('.'))),
 	author$project$Main$octet);
-var elm$core$List$foldrHelper = F4(
-	function (fn, acc, ctr, ls) {
-		if (!ls.b) {
-			return acc;
-		} else {
-			var a = ls.a;
-			var r1 = ls.b;
-			if (!r1.b) {
-				return A2(fn, a, acc);
-			} else {
-				var b = r1.a;
-				var r2 = r1.b;
-				if (!r2.b) {
-					return A2(
-						fn,
-						a,
-						A2(fn, b, acc));
-				} else {
-					var c = r2.a;
-					var r3 = r2.b;
-					if (!r3.b) {
-						return A2(
-							fn,
-							a,
-							A2(
-								fn,
-								b,
-								A2(fn, c, acc)));
-					} else {
-						var d = r3.a;
-						var r4 = r3.b;
-						var res = (ctr > 500) ? A3(
-							elm$core$List$foldl,
-							fn,
-							acc,
-							elm$core$List$reverse(r4)) : A4(elm$core$List$foldrHelper, fn, acc, ctr + 1, r4);
-						return A2(
-							fn,
-							a,
-							A2(
-								fn,
-								b,
-								A2(
-									fn,
-									c,
-									A2(fn, d, res))));
-					}
-				}
-			}
-		}
-	});
-var elm$core$List$foldr = F3(
-	function (fn, acc, ls) {
-		return A4(elm$core$List$foldrHelper, fn, acc, 0, ls);
-	});
-var elm$core$List$map = F2(
-	function (f, xs) {
-		return A3(
-			elm$core$List$foldr,
-			F2(
-				function (x, acc) {
-					return A2(
-						elm$core$List$cons,
-						f(x),
-						acc);
-				}),
-			_List_Nil,
-			xs);
-	});
 var elm$parser$Parser$DeadEnd = F3(
 	function (row, col, problem) {
 		return {col: col, problem: problem, row: row};
@@ -5566,233 +5670,142 @@ var author$project$Main$newIpAddress = function (str) {
 		return elm$core$Maybe$Nothing;
 	}
 };
-var elm$core$Maybe$map2 = F3(
-	function (func, ma, mb) {
-		if (ma.$ === 'Nothing') {
-			return elm$core$Maybe$Nothing;
-		} else {
-			var a = ma.a;
-			if (mb.$ === 'Nothing') {
-				return elm$core$Maybe$Nothing;
+var elm$core$Elm$JsArray$map = _JsArray_map;
+var elm$core$Array$map = F2(
+	function (func, _n0) {
+		var len = _n0.a;
+		var startShift = _n0.b;
+		var tree = _n0.c;
+		var tail = _n0.d;
+		var helper = function (node) {
+			if (node.$ === 'SubTree') {
+				var subTree = node.a;
+				return elm$core$Array$SubTree(
+					A2(elm$core$Elm$JsArray$map, helper, subTree));
 			} else {
-				var b = mb.a;
-				return elm$core$Maybe$Just(
-					A2(func, a, b));
+				var values = node.a;
+				return elm$core$Array$Leaf(
+					A2(elm$core$Elm$JsArray$map, func, values));
 			}
-		}
-	});
-var author$project$Main$newFactoryDevice = function (input) {
-	return A3(
-		elm$core$Maybe$map2,
-		author$project$Main$FactoryDevice,
-		author$project$Main$newIpAddress(input.address),
-		author$project$Main$newIpAddress(input.gateway));
-};
-var elm$core$Array$fromListHelp = F3(
-	function (list, nodeList, nodeListSize) {
-		fromListHelp:
-		while (true) {
-			var _n0 = A2(elm$core$Elm$JsArray$initializeFromList, elm$core$Array$branchFactor, list);
-			var jsArray = _n0.a;
-			var remainingItems = _n0.b;
-			if (_Utils_cmp(
-				elm$core$Elm$JsArray$length(jsArray),
-				elm$core$Array$branchFactor) < 0) {
-				return A2(
-					elm$core$Array$builderToArray,
-					true,
-					{nodeList: nodeList, nodeListSize: nodeListSize, tail: jsArray});
-			} else {
-				var $temp$list = remainingItems,
-					$temp$nodeList = A2(
-					elm$core$List$cons,
-					elm$core$Array$Leaf(jsArray),
-					nodeList),
-					$temp$nodeListSize = nodeListSize + 1;
-				list = $temp$list;
-				nodeList = $temp$nodeList;
-				nodeListSize = $temp$nodeListSize;
-				continue fromListHelp;
-			}
-		}
-	});
-var elm$core$Array$fromList = function (list) {
-	if (!list.b) {
-		return elm$core$Array$empty;
-	} else {
-		return A3(elm$core$Array$fromListHelp, list, _List_Nil, 0);
-	}
-};
-var elm$core$Basics$composeL = F3(
-	function (g, f, x) {
-		return g(
-			f(x));
-	});
-var elm$core$Maybe$map = F2(
-	function (f, maybe) {
-		if (maybe.$ === 'Just') {
-			var value = maybe.a;
-			return elm$core$Maybe$Just(
-				f(value));
-		} else {
-			return elm$core$Maybe$Nothing;
-		}
-	});
-var elm_community$maybe_extra$Maybe$Extra$combine = A2(
-	elm$core$List$foldr,
-	elm$core$Maybe$map2(elm$core$List$cons),
-	elm$core$Maybe$Just(_List_Nil));
-var author$project$Main$newFactoryDevies = A2(
-	elm$core$Basics$composeL,
-	A2(
-		elm$core$Basics$composeL,
-		A2(
-			elm$core$Basics$composeL,
-			elm$core$Maybe$map(elm$core$Array$fromList),
-			elm_community$maybe_extra$Maybe$Extra$combine),
-		elm$core$List$map(author$project$Main$newFactoryDevice)),
-	elm$core$Array$toList);
-var author$project$Main$init = author$project$Main$generateJson(
-	{
-		debugString: '',
-		factoryDeviceInputs: elm$core$Array$fromList(
-			_List_fromArray(
-				[author$project$Main$emptyFactoryDeviceInput])),
-		factoryDevices: author$project$Main$newFactoryDevies(
-			elm$core$Array$fromList(
-				_List_fromArray(
-					[author$project$Main$emptyFactoryDeviceInput]))),
-		gig1IpAddress: elm$core$Maybe$Nothing,
-		gig1IpAddressInput: A2(
-			author$project$Main$Gig1IpAddressInput,
-			'',
-			elm$core$Maybe$Just(author$project$Main$errInvalidIpAddress)),
-		gig1PrefixLen: author$project$Main$PrefixLen(24),
-		jsonOutput: '',
-		numberOfDevice: 1
-	});
-var author$project$Main$errSetGig1AddressFirst = 'Set GE1 Address first.';
-var elm$core$Bitwise$shiftLeftBy = _Bitwise_shiftLeftBy;
-var author$project$Main$ipAddressToInt = function (_n0) {
-	var o1 = _n0.a.a;
-	var o2 = _n0.b.a;
-	var o3 = _n0.c.a;
-	var o4 = _n0.d.a;
-	return (((o1 << 24) + (o2 << 16)) + (o3 << 8)) + o4;
-};
-var author$project$Main$isSameNetwork = F3(
-	function (addr1, addr2, prefixLen) {
-		var networkMask = author$project$Main$prefixLenToBitmask(prefixLen);
-		return _Utils_eq(
-			author$project$Main$ipAddressToInt(addr1) & networkMask,
-			author$project$Main$ipAddressToInt(addr1) & networkMask);
-	});
-var author$project$Main$errBroadcastAddressIsNotAllowed = 'Broadcast address is not allowed.  Check Prefix Length too.';
-var author$project$Main$errGig1AddressIsNotAllowed = 'Device address and GE1 address can\'t be same.';
-var author$project$Main$errNetworkAddressIsNotAllowed = 'Network address is not allowed.  Check Prefix Length too.';
-var elm$core$Bitwise$xor = _Bitwise_xor;
-var author$project$Main$prefixLenToHostBitmask = function (prefixLen) {
-	return 4294967295 ^ author$project$Main$prefixLenToBitmask(prefixLen);
-};
-var author$project$Main$isBroadcastAddr = F2(
-	function (addr, prefixLen) {
-		var hostMask = author$project$Main$prefixLenToHostBitmask(prefixLen);
-		return _Utils_eq(
-			author$project$Main$ipAddressToInt(addr) & hostMask,
-			hostMask);
-	});
-var author$project$Main$isNetworkAddr = F2(
-	function (addr, prefixLen) {
-		return !(author$project$Main$ipAddressToInt(addr) & author$project$Main$prefixLenToHostBitmask(prefixLen));
+		};
+		return A4(
+			elm$core$Array$Array_elm_builtin,
+			len,
+			startShift,
+			A2(elm$core$Elm$JsArray$map, helper, tree),
+			A2(elm$core$Elm$JsArray$map, func, tail));
 	});
 var author$project$Main$validateModel = function (model) {
 	var validateGig1Input = function (m) {
 		var validateGi1IpAddress = F2(
 			function (str, prefixLen) {
-				var _n5 = author$project$Main$newIpAddress(str);
-				if (_n5.$ === 'Nothing') {
-					return _Utils_Tuple2(
-						elm$core$Maybe$Just(author$project$Main$errInvalidIpAddress),
-						elm$core$Maybe$Nothing);
+				var _n7 = author$project$Main$newIpAddress(str);
+				if (_n7.$ === 'Nothing') {
+					return elm$core$Result$Err(author$project$Main$errInvalidIpAddress);
 				} else {
-					var decodedAddr = _n5.a;
-					return A2(author$project$Main$isNetworkAddr, decodedAddr, prefixLen) ? _Utils_Tuple2(
-						elm$core$Maybe$Just(author$project$Main$errNetworkAddressIsNotAllowed),
-						elm$core$Maybe$Nothing) : (A2(author$project$Main$isBroadcastAddr, decodedAddr, prefixLen) ? _Utils_Tuple2(
-						elm$core$Maybe$Just(author$project$Main$errBroadcastAddressIsNotAllowed),
-						elm$core$Maybe$Nothing) : _Utils_Tuple2(
-						elm$core$Maybe$Nothing,
-						elm$core$Maybe$Just(decodedAddr)));
+					var decodedAddr = _n7.a;
+					return A2(author$project$Main$isNetworkAddr, decodedAddr, prefixLen) ? elm$core$Result$Err(author$project$Main$errNetworkAddressIsNotAllowed) : (A2(author$project$Main$isBroadcastAddr, decodedAddr, prefixLen) ? elm$core$Result$Err(author$project$Main$errBroadcastAddressIsNotAllowed) : elm$core$Result$Ok(decodedAddr));
 				}
 			});
-		var input = m.gig1IpAddressInput;
-		var _n4 = A2(validateGi1IpAddress, input.address, m.gig1PrefixLen);
-		var err = _n4.a;
-		var addr = _n4.b;
+		var input = m.gig1IpAddress;
 		return _Utils_update(
 			m,
 			{
-				gig1IpAddress: addr,
-				gig1IpAddressInput: _Utils_update(
+				gig1IpAddress: _Utils_update(
 					input,
-					{error: err})
+					{
+						address: A2(validateGi1IpAddress, input.addressInput, m.gig1PrefixLen)
+					})
 			});
 	};
-	var validateDeviceGateway = function (str) {
-		return _Utils_Tuple3(true, elm$core$Maybe$Nothing, elm$core$Maybe$Nothing);
-	};
+	var rejectReservedAddress = F3(
+		function (gig1addr, prefixLen, addr) {
+			return A2(author$project$Main$isNetworkAddr, addr, prefixLen) ? elm$core$Result$Err(author$project$Main$errNetworkAddressIsNotAllowed) : (A2(author$project$Main$isBroadcastAddr, addr, prefixLen) ? elm$core$Result$Err(author$project$Main$errBroadcastAddressIsNotAllowed) : (_Utils_eq(gig1addr, addr) ? elm$core$Result$Err(author$project$Main$errGig1AddressIsNotAllowed) : elm$core$Result$Ok(addr)));
+		});
 	var validateDeviceAddress = function (str) {
-		var _n2 = model.gig1IpAddress;
-		if (_n2.$ === 'Nothing') {
-			return _Utils_Tuple3(
-				false,
-				elm$core$Maybe$Just(author$project$Main$errSetGig1AddressFirst),
-				elm$core$Maybe$Nothing);
+		var _n5 = model.gig1IpAddress.address;
+		if (_n5.$ === 'Err') {
+			return _Utils_Tuple2(
+				elm$core$Result$Err(author$project$Main$errSetGig1AddressFirst),
+				false);
 		} else {
-			var gig1addr = _n2.a;
-			var _n3 = author$project$Main$newIpAddress(str);
-			if (_n3.$ === 'Nothing') {
-				return _Utils_Tuple3(
-					false,
-					elm$core$Maybe$Just(author$project$Main$errInvalidIpAddress),
-					elm$core$Maybe$Nothing);
+			var gig1addr = _n5.a;
+			var _n6 = author$project$Main$newIpAddress(str);
+			if (_n6.$ === 'Nothing') {
+				return _Utils_Tuple2(
+					elm$core$Result$Err(author$project$Main$errInvalidIpAddress),
+					false);
 			} else {
-				var addr = _n3.a;
-				return (!A3(author$project$Main$isSameNetwork, addr, gig1addr, model.gig1PrefixLen)) ? _Utils_Tuple3(
-					true,
-					elm$core$Maybe$Nothing,
-					elm$core$Maybe$Just(addr)) : (A2(author$project$Main$isNetworkAddr, addr, model.gig1PrefixLen) ? _Utils_Tuple3(
-					false,
-					elm$core$Maybe$Just(author$project$Main$errNetworkAddressIsNotAllowed),
-					elm$core$Maybe$Nothing) : (A2(author$project$Main$isBroadcastAddr, addr, model.gig1PrefixLen) ? _Utils_Tuple3(
-					false,
-					elm$core$Maybe$Just(author$project$Main$errBroadcastAddressIsNotAllowed),
-					elm$core$Maybe$Nothing) : (_Utils_eq(addr, gig1addr) ? _Utils_Tuple3(
-					false,
-					elm$core$Maybe$Just(author$project$Main$errGig1AddressIsNotAllowed),
-					elm$core$Maybe$Nothing) : _Utils_Tuple3(
-					true,
-					elm$core$Maybe$Nothing,
-					elm$core$Maybe$Just(addr)))));
+				var addr = _n6.a;
+				return (!A3(author$project$Main$isSameNetwork, addr, gig1addr, model.gig1PrefixLen)) ? _Utils_Tuple2(
+					elm$core$Result$Ok(addr),
+					false) : _Utils_Tuple2(
+					A3(rejectReservedAddress, gig1addr, model.gig1PrefixLen, addr),
+					true);
 			}
 		}
 	};
-	var validateDeviceInput = function (input) {
-		var _n0 = validateDeviceGateway(input.gateway);
-		var validGateway = _n0.a;
-		var errInGateway = _n0.b;
-		var deviceGateway = _n0.c;
-		var _n1 = validateDeviceAddress(input.address);
-		var validAddress = _n1.a;
-		var errInAddress = _n1.b;
-		var deviceAddress = _n1.c;
-		return (!validAddress) ? _Utils_update(
-			input,
-			{error: errInAddress, isValidAddress: false}) : _Utils_update(
-			input,
-			{error: errInAddress, isValidAddress: true});
+	var validateDeviceGateway = function (str) {
+		var _n3 = model.gig1IpAddress.address;
+		if (_n3.$ === 'Err') {
+			return elm$core$Result$Err(author$project$Main$errSetGig1AddressFirst);
+		} else {
+			var gig1addr = _n3.a;
+			var _n4 = author$project$Main$newIpAddress(str);
+			if (_n4.$ === 'Nothing') {
+				return elm$core$Result$Err(author$project$Main$errInvalidIpAddress);
+			} else {
+				var addr = _n4.a;
+				return (!A3(author$project$Main$isSameNetwork, addr, gig1addr, model.gig1PrefixLen)) ? elm$core$Result$Err(author$project$Main$errGatewayMustBelongGig1Network) : A3(rejectReservedAddress, gig1addr, model.gig1PrefixLen, addr);
+			}
+		}
 	};
-	return validateGig1Input(model);
+	var validateDevice = function (input) {
+		var _n0 = validateDeviceAddress(input.addressInput);
+		var deviceAddress = _n0.a;
+		var sameNetwork = _n0.b;
+		if (deviceAddress.$ === 'Err') {
+			return _Utils_update(
+				input,
+				{address: deviceAddress});
+		} else {
+			if (sameNetwork) {
+				return _Utils_update(
+					input,
+					{address: deviceAddress, gateway: deviceAddress, gatewayInput: input.addressInput});
+			} else {
+				var _n2 = validateDeviceGateway(input.gatewayInput);
+				if (_n2.$ === 'Err') {
+					var err = _n2.a;
+					return _Utils_update(
+						input,
+						{
+							address: deviceAddress,
+							gateway: elm$core$Result$Err(err),
+							gatewayInput: input.gatewayInput
+						});
+				} else {
+					var gw = _n2.a;
+					return _Utils_update(
+						input,
+						{
+							address: deviceAddress,
+							gateway: elm$core$Result$Ok(gw),
+							gatewayInput: input.gatewayInput
+						});
+				}
+			}
+		}
+	};
+	var validateDevices = function (m) {
+		return _Utils_update(
+			m,
+			{
+				factoryDevices: A2(elm$core$Array$map, validateDevice, m.factoryDevices)
+			});
+	};
+	return validateDevices(
+		validateGig1Input(model));
 };
 var elm$core$Array$length = function (_n0) {
 	var len = _n0.a;
@@ -6157,13 +6170,13 @@ var author$project$Main$update = F2(
 					switch (msg.$) {
 						case 'OnChangeGig1IpAddressInput':
 							var str = msg.a;
-							var input = model.gig1IpAddressInput;
+							var input = model.gig1IpAddress;
 							return _Utils_update(
 								model,
 								{
-									gig1IpAddressInput: _Utils_update(
+									gig1IpAddress: _Utils_update(
 										input,
-										{address: str})
+										{addressInput: str})
 								});
 						case 'OnChangeGig1PrefixLen':
 							var n = msg.a;
@@ -6171,65 +6184,37 @@ var author$project$Main$update = F2(
 								model,
 								{gig1PrefixLen: n});
 						case 'IncNumberOfDevice':
-							var newFactoryDeviceInputs = A2(elm$core$Array$push, author$project$Main$emptyFactoryDeviceInput, model.factoryDeviceInputs);
 							return (model.numberOfDevice >= 23) ? model : author$project$Main$generateJson(
 								_Utils_update(
 									model,
 									{
-										factoryDeviceInputs: newFactoryDeviceInputs,
-										factoryDevices: author$project$Main$newFactoryDevies(newFactoryDeviceInputs),
+										factoryDevices: A2(elm$core$Array$push, author$project$Main$emptyFactoryDevice, model.factoryDevices),
 										numberOfDevice: model.numberOfDevice + 1
 									}));
 						case 'DecNumberOfDevice':
-							var newFactoryDeviceInputs = A3(
-								elm$core$Array$slice,
-								0,
-								elm$core$Array$length(model.factoryDeviceInputs) - 1,
-								model.factoryDeviceInputs);
 							return (model.numberOfDevice <= 1) ? model : author$project$Main$generateJson(
 								_Utils_update(
 									model,
 									{
-										factoryDeviceInputs: newFactoryDeviceInputs,
-										factoryDevices: author$project$Main$newFactoryDevies(newFactoryDeviceInputs),
+										factoryDevices: A3(
+											elm$core$Array$slice,
+											0,
+											elm$core$Array$length(model.factoryDevices) - 1,
+											model.factoryDevices),
 										numberOfDevice: model.numberOfDevice - 1
 									}));
 						default:
 							var index = msg.a;
 							var addrStr = msg.b;
 							var gwStr = msg.c;
-							var _n1 = function () {
-								var _n2 = author$project$Main$newIpAddress(addrStr);
-								if (_n2.$ === 'Nothing') {
-									return _Utils_Tuple2(
-										elm$core$Maybe$Just(author$project$Main$errInvalidIpAddress),
-										gwStr);
-								} else {
-									var addr = _n2.a;
-									var _n3 = model.gig1IpAddress;
-									if (_n3.$ === 'Nothing') {
-										return _Utils_Tuple2(
-											elm$core$Maybe$Just(author$project$Main$errSetGig1AddressFirst),
-											gwStr);
-									} else {
-										var gig1addr = _n3.a;
-										return A3(author$project$Main$isSameNetwork, addr, gig1addr, model.gig1PrefixLen) ? _Utils_Tuple2(elm$core$Maybe$Nothing, addrStr) : _Utils_Tuple2(elm$core$Maybe$Nothing, gwStr);
-									}
-								}
-							}();
-							var err = _n1.a;
-							var gw = _n1.b;
-							var updateFactoryDeviceInputs = function () {
-								var entry = {address: addrStr, error: err, gateway: gw, isValidAddress: false, isValidGateway: true};
-								return A3(elm$core$Array$set, index, entry, model.factoryDeviceInputs);
-							}();
-							return author$project$Main$generateJson(
-								_Utils_update(
-									model,
-									{
-										factoryDeviceInputs: updateFactoryDeviceInputs,
-										factoryDevices: author$project$Main$newFactoryDevies(updateFactoryDeviceInputs)
-									}));
+							var entry = _Utils_update(
+								author$project$Main$emptyFactoryDevice,
+								{addressInput: addrStr, gatewayInput: gwStr});
+							return _Utils_update(
+								model,
+								{
+									factoryDevices: A3(elm$core$Array$set, index, entry, model.factoryDevices)
+								});
 					}
 				}()));
 	});
@@ -6958,6 +6943,16 @@ var elm$core$List$filterMap = F2(
 			elm$core$List$maybeCons(f),
 			_List_Nil,
 			xs);
+	});
+var elm$core$Maybe$map = F2(
+	function (f, maybe) {
+		if (maybe.$ === 'Just') {
+			var value = maybe.a;
+			return elm$core$Maybe$Just(
+				f(value));
+		} else {
+			return elm$core$Maybe$Nothing;
+		}
 	});
 var elm$core$Tuple$mapFirst = F2(
 	function (func, _n0) {
@@ -9133,15 +9128,6 @@ var mdgriffith$elm_ui$Internal$Model$staticRoot = function (opts) {
 				_List_Nil);
 	}
 };
-var elm$json$Json$Encode$list = F2(
-	function (func, entries) {
-		return _Json_wrap(
-			A3(
-				elm$core$List$foldl,
-				_Json_addEntry(func),
-				_Json_emptyArray(_Utils_Tuple0),
-				entries));
-	});
 var elm$core$Basics$min = F2(
 	function (x, y) {
 		return (_Utils_cmp(x, y) < 0) ? x : y;
@@ -12277,17 +12263,18 @@ var mdgriffith$elm_ui$Internal$Model$spacingName = F2(
 	function (x, y) {
 		return 'spacing-' + (elm$core$String$fromInt(x) + ('-' + elm$core$String$fromInt(y)));
 	});
-var mdgriffith$elm_ui$Element$spacing = function (x) {
-	return A2(
-		mdgriffith$elm_ui$Internal$Model$StyleClass,
-		mdgriffith$elm_ui$Internal$Flag$spacing,
-		A3(
-			mdgriffith$elm_ui$Internal$Model$SpacingStyle,
-			A2(mdgriffith$elm_ui$Internal$Model$spacingName, x, x),
-			x,
-			x));
-};
-var mdgriffith$elm_ui$Internal$Flag$fontColor = mdgriffith$elm_ui$Internal$Flag$flag(14);
+var mdgriffith$elm_ui$Element$spacingXY = F2(
+	function (x, y) {
+		return A2(
+			mdgriffith$elm_ui$Internal$Model$StyleClass,
+			mdgriffith$elm_ui$Internal$Flag$spacing,
+			A3(
+				mdgriffith$elm_ui$Internal$Model$SpacingStyle,
+				A2(mdgriffith$elm_ui$Internal$Model$spacingName, x, y),
+				x,
+				y));
+	});
+var mdgriffith$elm_ui$Internal$Flag$borderColor = mdgriffith$elm_ui$Internal$Flag$flag(28);
 var mdgriffith$elm_ui$Internal$Model$Colored = F3(
 	function (a, b, c) {
 		return {$: 'Colored', a: a, b: b, c: c};
@@ -12299,6 +12286,17 @@ var mdgriffith$elm_ui$Internal$Model$formatColorClass = function (_n0) {
 	var alpha = _n0.d;
 	return mdgriffith$elm_ui$Internal$Model$floatClass(red) + ('-' + (mdgriffith$elm_ui$Internal$Model$floatClass(green) + ('-' + (mdgriffith$elm_ui$Internal$Model$floatClass(blue) + ('-' + mdgriffith$elm_ui$Internal$Model$floatClass(alpha))))));
 };
+var mdgriffith$elm_ui$Element$Border$color = function (clr) {
+	return A2(
+		mdgriffith$elm_ui$Internal$Model$StyleClass,
+		mdgriffith$elm_ui$Internal$Flag$borderColor,
+		A3(
+			mdgriffith$elm_ui$Internal$Model$Colored,
+			'bc-' + mdgriffith$elm_ui$Internal$Model$formatColorClass(clr),
+			'border-color',
+			clr));
+};
+var mdgriffith$elm_ui$Internal$Flag$fontColor = mdgriffith$elm_ui$Internal$Flag$flag(14);
 var mdgriffith$elm_ui$Element$Font$color = function (fontColor) {
 	return A2(
 		mdgriffith$elm_ui$Internal$Model$StyleClass,
@@ -12417,6 +12415,16 @@ var mdgriffith$elm_ui$Element$paddingEach = function (_n0) {
 			left));
 };
 var mdgriffith$elm_ui$Element$scrollbarY = A2(mdgriffith$elm_ui$Internal$Model$Class, mdgriffith$elm_ui$Internal$Flag$overflow, mdgriffith$elm_ui$Internal$Style$classes.scrollbarsY);
+var mdgriffith$elm_ui$Element$spacing = function (x) {
+	return A2(
+		mdgriffith$elm_ui$Internal$Model$StyleClass,
+		mdgriffith$elm_ui$Internal$Flag$spacing,
+		A3(
+			mdgriffith$elm_ui$Internal$Model$SpacingStyle,
+			A2(mdgriffith$elm_ui$Internal$Model$spacingName, x, x),
+			x,
+			x));
+};
 var mdgriffith$elm_ui$Element$Input$TextArea = {$: 'TextArea'};
 var mdgriffith$elm_ui$Internal$Model$AsColumn = {$: 'AsColumn'};
 var mdgriffith$elm_ui$Internal$Model$asColumn = mdgriffith$elm_ui$Internal$Model$AsColumn;
@@ -12539,17 +12547,6 @@ var mdgriffith$elm_ui$Element$Background$color = function (clr) {
 			mdgriffith$elm_ui$Internal$Model$Colored,
 			'bg-' + mdgriffith$elm_ui$Internal$Model$formatColorClass(clr),
 			'background-color',
-			clr));
-};
-var mdgriffith$elm_ui$Internal$Flag$borderColor = mdgriffith$elm_ui$Internal$Flag$flag(28);
-var mdgriffith$elm_ui$Element$Border$color = function (clr) {
-	return A2(
-		mdgriffith$elm_ui$Internal$Model$StyleClass,
-		mdgriffith$elm_ui$Internal$Flag$borderColor,
-		A3(
-			mdgriffith$elm_ui$Internal$Model$Colored,
-			'bc-' + mdgriffith$elm_ui$Internal$Model$formatColorClass(clr),
-			'border-color',
 			clr));
 };
 var mdgriffith$elm_ui$Element$rgb = F3(
@@ -13222,11 +13219,50 @@ var mdgriffith$elm_ui$Element$Input$text = mdgriffith$elm_ui$Element$Input$textH
 		type_: mdgriffith$elm_ui$Element$Input$TextInputNode('text')
 	});
 var author$project$Main$inputFactoryDevices = function (data) {
+	var gatewayErrorColor = function (dev) {
+		var _n5 = dev.gateway;
+		if (_n5.$ === 'Ok') {
+			return _List_Nil;
+		} else {
+			return _List_fromArray(
+				[
+					mdgriffith$elm_ui$Element$Border$color(
+					A3(mdgriffith$elm_ui$Element$rgb255, 255, 0, 0))
+				]);
+		}
+	};
+	var errorMessage = function (dev) {
+		var _n3 = dev.address;
+		if (_n3.$ === 'Err') {
+			var err = _n3.a;
+			return err;
+		} else {
+			var _n4 = dev.gateway;
+			if (_n4.$ === 'Err') {
+				var err = _n4.a;
+				return err;
+			} else {
+				return '';
+			}
+		}
+	};
+	var addressErrorColor = function (dev) {
+		var _n2 = dev.address;
+		if (_n2.$ === 'Ok') {
+			return _List_Nil;
+		} else {
+			return _List_fromArray(
+				[
+					mdgriffith$elm_ui$Element$Border$color(
+					A3(mdgriffith$elm_ui$Element$rgb255, 255, 0, 0))
+				]);
+		}
+	};
 	return A2(
 		mdgriffith$elm_ui$Element$indexedTable,
 		_List_fromArray(
 			[
-				mdgriffith$elm_ui$Element$spacing(5)
+				A2(mdgriffith$elm_ui$Element$spacingXY, 10, 3)
 			]),
 		{
 			columns: _List_fromArray(
@@ -13242,19 +13278,19 @@ var author$project$Main$inputFactoryDevices = function (data) {
 								mdgriffith$elm_ui$Element$text(
 									'GW +' + elm$core$String$fromInt(n + 7)));
 						}),
-					width: mdgriffith$elm_ui$Element$fill
+					width: mdgriffith$elm_ui$Element$px(100)
 				},
 					{
 					header: mdgriffith$elm_ui$Element$text('Device IP Address'),
 					view: F2(
-						function (n, deviceInput) {
+						function (n, device) {
 							return A2(
 								mdgriffith$elm_ui$Element$Input$text,
-								_List_Nil,
+								addressErrorColor(device),
 								{
 									label: mdgriffith$elm_ui$Element$Input$labelHidden('Device IP Address'),
 									onChange: function (addr) {
-										return A3(author$project$Main$OnChangeFactoryDeviceInput, n, addr, deviceInput.gateway);
+										return A3(author$project$Main$OnChangeFactoryDeviceInput, n, addr, device.gatewayInput);
 									},
 									placeholder: elm$core$Maybe$Just(
 										A2(
@@ -13262,36 +13298,36 @@ var author$project$Main$inputFactoryDevices = function (data) {
 											_List_Nil,
 											mdgriffith$elm_ui$Element$text(
 												'192.168.100.' + elm$core$String$fromInt(n + 2)))),
-									text: deviceInput.address
+									text: device.addressInput
 								});
 						}),
-					width: mdgriffith$elm_ui$Element$fill
+					width: mdgriffith$elm_ui$Element$px(200)
 				},
 					{
 					header: mdgriffith$elm_ui$Element$text('Gateway IP to the Device'),
 					view: F2(
-						function (n, deviceInput) {
+						function (n, device) {
 							return A2(
 								mdgriffith$elm_ui$Element$Input$text,
-								_List_Nil,
+								gatewayErrorColor(device),
 								{
 									label: mdgriffith$elm_ui$Element$Input$labelHidden('Gateway IP to the Device'),
-									onChange: A2(author$project$Main$OnChangeFactoryDeviceInput, n, deviceInput.address),
+									onChange: A2(author$project$Main$OnChangeFactoryDeviceInput, n, device.addressInput),
 									placeholder: elm$core$Maybe$Just(
 										A2(
 											mdgriffith$elm_ui$Element$Input$placeholder,
 											_List_Nil,
 											mdgriffith$elm_ui$Element$text(
 												'192.168.100.' + elm$core$String$fromInt(n + 2)))),
-									text: deviceInput.gateway
+									text: device.gatewayInput
 								});
 						}),
-					width: mdgriffith$elm_ui$Element$fill
+					width: mdgriffith$elm_ui$Element$px(200)
 				},
 					{
 					header: mdgriffith$elm_ui$Element$text(''),
 					view: F2(
-						function (_n1, deviceInput) {
+						function (_n1, device) {
 							return A2(
 								mdgriffith$elm_ui$Element$el,
 								_List_fromArray(
@@ -13301,7 +13337,7 @@ var author$project$Main$inputFactoryDevices = function (data) {
 										A3(mdgriffith$elm_ui$Element$rgb255, 255, 0, 0))
 									]),
 								mdgriffith$elm_ui$Element$text(
-									A2(elm$core$Maybe$withDefault, '', deviceInput.error)));
+									errorMessage(device)));
 						}),
 					width: mdgriffith$elm_ui$Element$fill
 				}
@@ -13321,22 +13357,28 @@ var mdgriffith$elm_ui$Element$Input$Label = F3(
 var mdgriffith$elm_ui$Element$Input$OnLeft = {$: 'OnLeft'};
 var mdgriffith$elm_ui$Element$Input$labelLeft = mdgriffith$elm_ui$Element$Input$Label(mdgriffith$elm_ui$Element$Input$OnLeft);
 var author$project$Main$inputGe1Address = function (input) {
+	var _n0 = function () {
+		var _n1 = input.address;
+		if (_n1.$ === 'Ok') {
+			return _Utils_Tuple2(_List_Nil, '');
+		} else {
+			var err = _n1.a;
+			return _Utils_Tuple2(
+				_List_fromArray(
+					[
+						mdgriffith$elm_ui$Element$Border$color(
+						A3(mdgriffith$elm_ui$Element$rgb255, 255, 0, 0))
+					]),
+				err);
+		}
+	}();
+	var errColor = _n0.a;
+	var errMsg = _n0.b;
 	return _List_fromArray(
 		[
 			A2(
 			mdgriffith$elm_ui$Element$Input$text,
-			function () {
-				var _n0 = input.error;
-				if (_n0.$ === 'Just') {
-					return _List_fromArray(
-						[
-							mdgriffith$elm_ui$Element$Border$color(
-							A3(mdgriffith$elm_ui$Element$rgb255, 255, 0, 0))
-						]);
-				} else {
-					return _List_Nil;
-				}
-			}(),
+			errColor,
 			{
 				label: A2(
 					mdgriffith$elm_ui$Element$Input$labelLeft,
@@ -13353,7 +13395,7 @@ var author$project$Main$inputGe1Address = function (input) {
 						mdgriffith$elm_ui$Element$Input$placeholder,
 						_List_Nil,
 						mdgriffith$elm_ui$Element$text('192.168.100.1'))),
-				text: input.address
+				text: input.addressInput
 			}),
 			A2(
 			mdgriffith$elm_ui$Element$el,
@@ -13362,8 +13404,7 @@ var author$project$Main$inputGe1Address = function (input) {
 					mdgriffith$elm_ui$Element$Font$color(
 					A3(mdgriffith$elm_ui$Element$rgb255, 255, 0, 0))
 				]),
-			mdgriffith$elm_ui$Element$text(
-				A2(elm$core$Maybe$withDefault, '', input.error)))
+			mdgriffith$elm_ui$Element$text(errMsg))
 		]);
 };
 var author$project$Main$OnChangeGig1PrefixLen = function (a) {
@@ -13410,17 +13451,6 @@ var mdgriffith$elm_ui$Element$row = F2(
 						mdgriffith$elm_ui$Element$height(mdgriffith$elm_ui$Element$shrink),
 						attrs))),
 			mdgriffith$elm_ui$Internal$Model$Unkeyed(children));
-	});
-var mdgriffith$elm_ui$Element$spacingXY = F2(
-	function (x, y) {
-		return A2(
-			mdgriffith$elm_ui$Internal$Model$StyleClass,
-			mdgriffith$elm_ui$Internal$Flag$spacing,
-			A3(
-				mdgriffith$elm_ui$Internal$Model$SpacingStyle,
-				A2(mdgriffith$elm_ui$Internal$Model$spacingName, x, y),
-				x,
-				y));
 	});
 var elm$core$Basics$abs = function (n) {
 	return (n < 0) ? (-n) : n;
@@ -14224,7 +14254,7 @@ var author$project$Main$view = function (model) {
 							mdgriffith$elm_ui$Element$padding(10),
 							mdgriffith$elm_ui$Element$spacing(10)
 						]),
-					author$project$Main$inputGe1Address(model.gig1IpAddressInput)),
+					author$project$Main$inputGe1Address(model.gig1IpAddress)),
 					A2(
 					mdgriffith$elm_ui$Element$row,
 					_List_fromArray(
@@ -14277,18 +14307,7 @@ var author$project$Main$view = function (model) {
 						]),
 					_List_fromArray(
 						[
-							author$project$Main$inputFactoryDevices(model.factoryDeviceInputs)
-						])),
-					A2(
-					mdgriffith$elm_ui$Element$row,
-					_List_fromArray(
-						[
-							mdgriffith$elm_ui$Element$padding(10)
-						]),
-					_List_fromArray(
-						[
-							mdgriffith$elm_ui$Element$text('Debug: '),
-							mdgriffith$elm_ui$Element$text(model.debugString)
+							author$project$Main$inputFactoryDevices(model.factoryDevices)
 						])),
 					A2(
 					mdgriffith$elm_ui$Element$row,
