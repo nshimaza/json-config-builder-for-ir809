@@ -91,7 +91,7 @@ type PrefixLen
 
 
 newPrefixLen : String -> Maybe PrefixLen
-newPrefixLen str =
+newPrefixLen =
     let
         checkRange len =
             if 8 <= len && len <= 30 then
@@ -100,7 +100,7 @@ newPrefixLen str =
             else
                 Nothing
     in
-    String.toInt str |> Maybe.andThen checkRange
+    Maybe.andThen checkRange << String.toInt
 
 
 prefixLenToInt : PrefixLen -> Int
@@ -129,8 +129,8 @@ prefixLenToNetmask prefixLen =
 
 
 prefixLenToHostBitmask : PrefixLen -> Int
-prefixLenToHostBitmask prefixLen =
-    Bitwise.xor 0xFFFFFFFF <| prefixLenToBitmask prefixLen
+prefixLenToHostBitmask =
+    Bitwise.xor 0xFFFFFFFF << prefixLenToBitmask
 
 
 isNetworkAddr : IpAddress -> PrefixLen -> Bool
@@ -210,8 +210,8 @@ toJsonOutput : Model -> String
 toJsonOutput model =
     let
         combineDevices : Array FactoryDevice -> Result String (List ( IpAddress, IpAddress ))
-        combineDevices devices =
-            Result.Extra.combine <| List.map (\d -> Result.map2 Tuple.pair d.address d.gateway) <| Array.toList devices
+        combineDevices =
+            Result.Extra.combine << List.map (\d -> Result.map2 Tuple.pair d.address d.gateway) << Array.toList
 
         factoryDeviceToJsonValue : ( IpAddress, IpAddress ) -> Encode.Value
         factoryDeviceToJsonValue ( address, gateway ) =
@@ -315,10 +315,6 @@ update msg model =
                     { model | gig1PrefixLen = n }
 
                 IncNumberOfDevice ->
-                    let
-                        newFactoryDevices =
-                            Array.push emptyFactoryDevice model.factoryDevices
-                    in
                     if model.numberOfDevice >= 23 then
                         model
 
@@ -326,14 +322,10 @@ update msg model =
                         generateJson
                             { model
                                 | numberOfDevice = model.numberOfDevice + 1
-                                , factoryDevices = newFactoryDevices
+                                , factoryDevices = Array.push emptyFactoryDevice model.factoryDevices
                             }
 
                 DecNumberOfDevice ->
-                    let
-                        newFactoryDevices =
-                            Array.slice 0 (Array.length model.factoryDevices - 1) model.factoryDevices
-                    in
                     if model.numberOfDevice <= 1 then
                         model
 
@@ -341,19 +333,15 @@ update msg model =
                         generateJson
                             { model
                                 | numberOfDevice = model.numberOfDevice - 1
-                                , factoryDevices = newFactoryDevices
+                                , factoryDevices = Array.slice 0 (Array.length model.factoryDevices - 1) model.factoryDevices
                             }
 
                 OnChangeFactoryDeviceInput index addrStr gwStr ->
                     let
-                        updateFactoryDevices =
-                            let
-                                entry =
-                                    { emptyFactoryDevice | addressInput = addrStr, gatewayInput = gwStr }
-                            in
-                            Array.set index entry model.factoryDevices
+                        entry =
+                            { emptyFactoryDevice | addressInput = addrStr, gatewayInput = gwStr }
                     in
-                    { model | factoryDevices = updateFactoryDevices }
+                    { model | factoryDevices = Array.set index entry model.factoryDevices }
 
 
 validateModel : Model -> Model
@@ -481,7 +469,6 @@ view model =
                 , incNumberOfDevice
                 ]
             , row [ padding 10 ] [ inputFactoryDevices model.factoryDevices ]
-            , row [ padding 10 ] [ text "Debug: ", text model.debugString ]
             , row [ width fill, Font.family [ Font.typeface "courier", Font.monospace ] ]
                 [ el [ padding 7, Border.width 1, width fill ] <| text model.jsonOutput ]
             ]
@@ -582,15 +569,15 @@ inputFactoryDevices data =
                         Ok _ ->
                             ""
     in
-    Element.indexedTable [ spacing 5 ]
+    Element.indexedTable [ Element.spacingXY 10 3 ]
         { data = Array.toList data
         , columns =
             [ { header = text "Address"
-              , width = fill
+              , width = px 100
               , view = \n _ -> el [ centerY ] <| text <| "GW +" ++ String.fromInt (n + 7)
               }
             , { header = text "Device IP Address"
-              , width = fill
+              , width = px 200
               , view =
                     \n device ->
                         Input.text (addressErrorColor device)
@@ -601,7 +588,7 @@ inputFactoryDevices data =
                             }
               }
             , { header = text "Gateway IP to the Device"
-              , width = fill
+              , width = px 200
               , view =
                     \n device ->
                         Input.text (gatewayErrorColor device)
